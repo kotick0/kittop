@@ -38,7 +38,7 @@ public class LinuxMemoryInfoProvider implements MemoryInfoProvider {
         return readMemoryInfoFromProcMeminfo().lines()
                 .filter(line -> line.startsWith(key + ":"))
                 .findFirst()
-                .map(line -> line.split(":")[1].replaceAll("kB", "").trim())
+                .map(line -> line.split(":")[1].replace("kB", "").trim())
                 .map(Long::parseLong)
                 .orElseThrow(() -> new IllegalStateException("No " + key + " line found in /proc/meminfo")) * 1024;
     }
