@@ -1,5 +1,7 @@
 package com.kotecku.javaresourcemonitor.memory;
 
+import com.kotecku.javaresourcemonitor.OnLinuxCondition;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -7,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 @Component
+@Conditional(OnLinuxCondition.class)
 public class LinuxMemoryInfoProvider implements MemoryInfoProvider {
 
     @Override

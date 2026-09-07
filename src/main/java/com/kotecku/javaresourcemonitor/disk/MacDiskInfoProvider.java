@@ -1,7 +1,9 @@
 package com.kotecku.javaresourcemonitor.disk;
 
+import com.kotecku.javaresourcemonitor.OnMacOsCondition;
 import com.sun.jna.Native;
 import com.sun.jna.ptr.PointerByReference;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -9,6 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 
 @Component
+@Conditional(OnMacOsCondition.class)
 public class MacDiskInfoProvider implements DiskInfoProvider {
 
     private List<CGetMntInfoLibrary.Statfs> callGetMntInfo() {
