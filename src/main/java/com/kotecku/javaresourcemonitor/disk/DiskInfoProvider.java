@@ -7,5 +7,7 @@ public interface DiskInfoProvider {
     List<Long> getTotalDiskSpaceBytes();
     List<Long> getUsedDiskSpaceBytes();
     List<Long> getFreeDiskSpaceBytes();
+    long getSwapTotalBytes();
+    long getSwapFreeBytes();
     //TODO Dodac IO%
 }

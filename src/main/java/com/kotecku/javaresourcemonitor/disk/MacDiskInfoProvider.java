@@ -81,4 +81,14 @@ public class MacDiskInfoProvider implements DiskInfoProvider {
         return freeDiskSpace;
     }
 
+    @Override
+    public long getSwapTotalBytes() {
+        return 0; //TODO Implementacja dla macOS
+    }
+
+    @Override
+    public long getSwapFreeBytes() {
+        return 0; //TODO Implementacja dla macOS
+    }
+
 }
