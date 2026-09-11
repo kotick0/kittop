@@ -16,51 +16,51 @@ abstract class MemoryInfoProviderContractTest {
 
     @Test
     void getTotalMemoryBytesValueShouldNotBeNull() {
-        assertThat(provider().getTotalMemoryBytes()).isNotNull();
+        assertThat(provider().getMemorySnapshot().totalMemoryBytes()).isNotNull();
     }
 
     @Test
     void getTotalMemoryBytesValueShouldEqualTotalMemory() {
-        assertThat(provider().getTotalMemoryBytes()).isEqualTo(TOTAL_MEMORY_BYTES);
+        assertThat(provider().getMemorySnapshot().totalMemoryBytes()).isEqualTo(TOTAL_MEMORY_BYTES);
     }
 
     @Test
     void getAvailableMemoryBytesValueShouldNotBeNull() {
-        assertThat(provider().getAvailableMemoryBytes()).isNotNull();
+        assertThat(provider().getMemorySnapshot().availableMemoryBytes()).isNotNull();
     }
 
     @Test
     void getAvailableMemoryBytesValueShouldNotBeNegative() {
-        assertThat(provider().getAvailableMemoryBytes()).isNotNegative();
+        assertThat(provider().getMemorySnapshot().availableMemoryBytes()).isNotNegative();
     }
 
     @Test
     void getFreeMemoryBytesValueShouldNotBeNull() {
-        assertThat(provider().getFreeMemoryBytes()).isNotNull();
+        assertThat(provider().getMemorySnapshot().freeMemoryBytes()).isNotNull();
     }
 
     @Test
     void getFreeMemoryBytesShouldNotBeNegative() {
-        assertThat(provider().getFreeMemoryBytes()).isNotNegative();
+        assertThat(provider().getMemorySnapshot().freeMemoryBytes()).isNotNegative();
     }
 
     @Test
     void getCachedMemoryBytesValueShouldNotBeNull() {
-        assertThat(provider().getCachedMemoryBytes()).isNotNull();
+        assertThat(provider().getMemorySnapshot().cachedMemoryBytes()).isNotNull();
     }
 
     @Test
     void getCachedMemoryBytesShouldNotBeNegative() {
-        assertThat(provider().getCachedMemoryBytes()).isNotNegative();
+        assertThat(provider().getMemorySnapshot().cachedMemoryBytes()).isNotNegative();
     }
 
     @Test
     void getUsedMemoryBytesValueShouldNotBeNull() {
-        assertThat(provider().getUsedMemoryBytes()).isNotNull();
+        assertThat(provider().getMemorySnapshot().usedMemoryBytes()).isNotNull();
     }
 
     @Test
     void getUsedMemoryBytesShouldNotBeNegative() {
-        assertThat(provider().getUsedMemoryBytes()).isNotNegative();
+        assertThat(provider().getMemorySnapshot().usedMemoryBytes()).isNotNegative();
     }
 }

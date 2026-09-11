@@ -7,51 +7,46 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 
 @Component
 @Conditional(OnLinuxCondition.class)
 public class LinuxMemoryInfoProvider implements MemoryInfoProvider {
+    private static final Path MEMINFOPATH = Path.of("/proc/meminfo");
 
     @Override
-    public long getTotalMemoryBytes() {
-        return memoryReader("MemTotal");
+    public MemorySnapshot getMemorySnapshot() {
+        HashMap<String, Long> memoryInfo = extractDataFromProcMeminfo();
+        return new MemorySnapshot(
+                memoryInfo.get("MemTotal"),
+                memoryInfo.get("MemAvailable"),
+                memoryInfo.get("MemFree"),
+                memoryInfo.get("Cached"),
+                memoryInfo.get("MemUsed")
+        );
     }
 
-    @Override
-    public long getAvailableMemoryBytes() {
-        return memoryReader("MemAvailable");
-    }
-
-    @Override
-    public long getFreeMemoryBytes() {
-        return memoryReader("MemFree");
-    }
-
-    @Override
-    public long getCachedMemoryBytes() {
-        return memoryReader("Cached");
-    }
-
-    @Override
-    public long getUsedMemoryBytes() {
-        return getTotalMemoryBytes() - getAvailableMemoryBytes();
-    }
-
-    private long memoryReader(String key) {
-        return readMemoryInfoFromProcMeminfo().lines()
-                .filter(line -> line.startsWith(key + ":"))
-                .findFirst()
-                .map(line -> line.split(":")[1].replace("kB", "").trim())
-                .map(Long::parseLong)
-                .orElseThrow(() -> new IllegalStateException("No " + key + " line found in /proc/meminfo")) * 1024;
-    }
-
-    private String readMemoryInfoFromProcMeminfo() {
-        Path meminfoPath = Path.of("/proc/meminfo");
+    private HashMap<String, Long> extractDataFromProcMeminfo() {
         try {
-            return Files.readString(meminfoPath);
+            String memInfoContent = Files.readString(MEMINFOPATH);
+            HashMap<String, Long> memoryInfo = new HashMap<>();
+            memInfoContent.lines()
+                    .filter(line -> line.startsWith("MemTotal:") ||
+                            line.startsWith("MemAvailable:") ||
+                            line.startsWith("MemFree:") ||
+                            line.startsWith("Cached:"))
+                    .map(line -> line.split(":"))
+                    .forEach(parts -> {
+                        String key = parts[0].trim();
+                        long value = Long.parseLong(parts[1].replace("kB", "").trim());
+                        memoryInfo.put(key, value * 1024);
+                        });
+            memoryInfo.put("MemUsed", memoryInfo.get("MemTotal") - memoryInfo.get("MemAvailable"));
+            return memoryInfo;
+
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to read /proc/meminfo: ", e);
         }
     }
+
 }

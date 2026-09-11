@@ -9,6 +9,8 @@ import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Component;
 import oshi.hardware.GlobalMemory;
 
+import java.util.HashMap;
+
 @Component
 @Conditional(OnMacOsCondition.class)
 @RequiredArgsConstructor
@@ -53,36 +55,33 @@ public class MacMemoryInfoProvider implements MemoryInfoProvider {
         return sizeBuffer.getLong(0);
     }
 
-    @Override
-    public long getTotalMemoryBytes() {
-        return memory.getTotal();
-    }
-
-    @Override
-    public long getAvailableMemoryBytes() {
+    private HashMap<String, Long> extractMemoryInfo() {
+        HashMap<String, Long> memoryInfo = new HashMap<>();
         MachHostStatisticsLibrary.VMStatistics64 stats = callVmStatistics64();
-
         long pageSize = readPageSizeFromSysctl();
-        long used = (stats.active_count + (long) stats.wire_count) * pageSize;
+        long totalMemoryBytes = memory.getTotal();
+        long availableMemoryBytes = (stats.active_count + (long) stats.wire_count) * pageSize;
+        long freeMemoryBytes = stats.free_count * pageSize;
+        long cachedMemoryBytes = stats.external_page_count * pageSize;
+        long usedMemoryBytes = totalMemoryBytes - availableMemoryBytes;
 
-        return (memory.getTotal() - used);
+        memoryInfo.put("MemTotal", totalMemoryBytes);
+        memoryInfo.put("MemAvailable", availableMemoryBytes);
+        memoryInfo.put("MemFree", freeMemoryBytes);
+        memoryInfo.put("Cached", cachedMemoryBytes);
+        memoryInfo.put("MemUsed", usedMemoryBytes);
+        return memoryInfo;
     }
 
     @Override
-    public long getFreeMemoryBytes() {
-        MachHostStatisticsLibrary.VMStatistics64 stats = callVmStatistics64();
-        return (stats.free_count * readPageSizeFromSysctl());
-    }
-
-    @Override
-    public long getCachedMemoryBytes() {
-        MachHostStatisticsLibrary.VMStatistics64 stats = callVmStatistics64();
-        return (stats.external_page_count * readPageSizeFromSysctl());
-    }
-
-    @Override
-    public long getUsedMemoryBytes() {
-        MachHostStatisticsLibrary.VMStatistics64 stats = callVmStatistics64();
-        return (stats.active_count + (long) stats.wire_count) * readPageSizeFromSysctl();
+    public MemorySnapshot getMemorySnapshot() {
+        HashMap<String, Long> memoryInfo = extractMemoryInfo();
+        return new MemorySnapshot(
+                memoryInfo.get("MemTotal"),
+                memoryInfo.get("MemAvailable"),
+                memoryInfo.get("MemFree"),
+                memoryInfo.get("Cached"),
+                memoryInfo.get("MemUsed")
+        );
     }
 }
