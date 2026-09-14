@@ -8,7 +8,7 @@ import org.junit.jupiter.api.condition.OS;
 @EnabledOnOs(OS.MAC)
 @EnabledIfSystemProperty(named = "os.arch", matches = ".*aarch64.*")
 class MacDiskInfoProviderTest extends DiskInfoProviderContractTest {
-    private static MacDiskInfoProvider provider = new MacDiskInfoProvider();
+    private static MacDiskInfoProvider provider;
 
     @BeforeAll
     static void setUp() {

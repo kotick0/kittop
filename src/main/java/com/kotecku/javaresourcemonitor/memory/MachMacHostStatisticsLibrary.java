@@ -10,8 +10,8 @@ import com.sun.jna.ptr.LongByReference;
 import java.util.Arrays;
 import java.util.List;
 
-public interface MachHostStatisticsLibrary extends Library {
-    MachHostStatisticsLibrary INSTANCE = Native.load("System", MachHostStatisticsLibrary.class);
+public interface MachMacHostStatisticsLibrary extends Library {
+    MachMacHostStatisticsLibrary INSTANCE = Native.load("System", MachMacHostStatisticsLibrary.class);
 
     int HOST_VM_INFO64 = 4;
     int KERN_SUCCESS = 0;

@@ -15,34 +15,34 @@ import java.util.List;
 @Conditional(OnMacOsCondition.class)
 public class MacDiskInfoProvider implements DiskInfoProvider {
 
-    private List<CGetMntInfoLibrary.Statfs> callGetMntInfo() {
+    private List<CMacGetMntInfoLibrary.Statfs> callGetMntInfo() {
         PointerByReference mntbufp = new PointerByReference();
-        int count = CGetMntInfoLibrary.INSTANCE.getmntinfo(mntbufp, CGetMntInfoLibrary.MNT_NOWAIT);
+        int count = CMacGetMntInfoLibrary.INSTANCE.getmntinfo(mntbufp, CMacGetMntInfoLibrary.MNT_NOWAIT);
 
         if (count == 0) {
             throw new IllegalStateException("getmntinfo() returned an error, code: " + count);
         }
 
-        CGetMntInfoLibrary.Statfs statfs = new CGetMntInfoLibrary.Statfs(mntbufp.getValue());
-        return Arrays.asList((CGetMntInfoLibrary.Statfs[]) statfs.toArray(count));
+        CMacGetMntInfoLibrary.Statfs statfs = new CMacGetMntInfoLibrary.Statfs(mntbufp.getValue());
+        return Arrays.asList((CMacGetMntInfoLibrary.Statfs[]) statfs.toArray(count));
     }
 
-    private CStatVfsLibrary.StatVfs callStatVfs(String path) {
-        CStatVfsLibrary.StatVfs vfs = new CStatVfsLibrary.StatVfs();
-        int result = CStatVfsLibrary.INSTANCE.statvfs(path, vfs);
+    private CMacStatVfsLibrary.StatVfs callStatVfs(String path) {
+        CMacStatVfsLibrary.StatVfs vfs = new CMacStatVfsLibrary.StatVfs();
+        int result = CMacStatVfsLibrary.INSTANCE.statvfs(path, vfs);
         if (result != 0) {
             throw new IllegalStateException("statvfs() returned an error, code: " + result);
         }
         return vfs;
     }
 
-    private CSysctlByNameLibrary.XswUsage callXswUsage() {
-        CSysctlByNameLibrary.XswUsage xswUsage = new CSysctlByNameLibrary.XswUsage();
+    private CMacSysctlByNameLibrary.XswUsage callXswUsage() {
+        CMacSysctlByNameLibrary.XswUsage xswUsage = new CMacSysctlByNameLibrary.XswUsage();
         LongByReference sizeLength = new LongByReference(xswUsage.size());
 
-        int result = CSysctlByNameLibrary.INSTANCE.sysctlbyname("vm.swapusage", xswUsage.getPointer(), sizeLength, null, 0L);
+        int result = CMacSysctlByNameLibrary.INSTANCE.sysctlbyname("vm.swapusage", xswUsage.getPointer(), sizeLength, null, 0L);
 
-        if (result != CSysctlByNameLibrary.KERN_SUCCESS) {
+        if (result != CMacSysctlByNameLibrary.KERN_SUCCESS) {
             throw new IllegalStateException("sysctlbyname(\"vm.swapusage\") returned an error, code: " + result);
         }
 
@@ -50,9 +50,9 @@ public class MacDiskInfoProvider implements DiskInfoProvider {
         return xswUsage;
     }
 
-    private List<String> getMountPoints(List<CGetMntInfoLibrary.Statfs> mntInfo) {
+    private List<String> getMountPoints(List<CMacGetMntInfoLibrary.Statfs> mntInfo) {
         List<String> mountPoints = new ArrayList<>();
-        for (CGetMntInfoLibrary.Statfs statfs : mntInfo) {
+        for (CMacGetMntInfoLibrary.Statfs statfs : mntInfo) {
             if(!Native.toString(statfs.f_mntonname).equals("/dev") && !Native.toString(statfs.f_mntonname).equals("/System/Volumes/Data/home")) {
                 mountPoints.add(Native.toString(statfs.f_mntonname));
             }
@@ -62,18 +62,18 @@ public class MacDiskInfoProvider implements DiskInfoProvider {
 
     @Override
     public DiskSnapshot getDiskSnapshot() {
-        List<CGetMntInfoLibrary.Statfs> mntInfo = callGetMntInfo();
+        List<CMacGetMntInfoLibrary.Statfs> mntInfo = callGetMntInfo();
         List<String> mountPoints = getMountPoints(mntInfo);
         List<MountPointSnapshot> mountPointSnapshots = new ArrayList<>();
         for(String mountPoint : mountPoints) {
-            CStatVfsLibrary.StatVfs statVfs = callStatVfs(mountPoint);
+            CMacStatVfsLibrary.StatVfs statVfs = callStatVfs(mountPoint);
             long totalSpaceBytes = statVfs.f_blocks * statVfs.f_frsize;
             long freeSpaceBytes = statVfs.f_bfree * statVfs.f_frsize;
             long usedSpaceBytes = totalSpaceBytes - freeSpaceBytes;
             mountPointSnapshots.add(new MountPointSnapshot(mountPoint, totalSpaceBytes, usedSpaceBytes, freeSpaceBytes));
         }
 
-        CSysctlByNameLibrary.XswUsage xswUsage = callXswUsage();
+        CMacSysctlByNameLibrary.XswUsage xswUsage = callXswUsage();
         long swapTotalBytes = xswUsage.xsu_total;
         long swapFreeBytes = xswUsage.xsu_avail;
         long swapUsedBytes = xswUsage.xsu_used;

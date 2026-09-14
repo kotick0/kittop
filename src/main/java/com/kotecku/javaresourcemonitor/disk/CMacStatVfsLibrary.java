@@ -7,8 +7,8 @@ import com.sun.jna.Structure;
 import java.util.Arrays;
 import java.util.List;
 
-public interface CStatVfsLibrary extends Library {
-    CStatVfsLibrary INSTANCE = Native.load("c", CStatVfsLibrary.class);
+public interface CMacStatVfsLibrary extends Library {
+    CMacStatVfsLibrary INSTANCE = Native.load("c", CMacStatVfsLibrary.class);
 
     int statvfs(String path, StatVfs buf);
 

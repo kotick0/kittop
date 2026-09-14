@@ -9,8 +9,8 @@ import com.sun.jna.ptr.PointerByReference;
 import java.util.Arrays;
 import java.util.List;
 
-public interface CGetMntInfoLibrary extends Library {
-    CGetMntInfoLibrary INSTANCE = Native.load("c", CGetMntInfoLibrary.class);
+public interface CMacGetMntInfoLibrary extends Library {
+    CMacGetMntInfoLibrary INSTANCE = Native.load("c", CMacGetMntInfoLibrary.class);
 
     int MNT_NOWAIT = 2;
 

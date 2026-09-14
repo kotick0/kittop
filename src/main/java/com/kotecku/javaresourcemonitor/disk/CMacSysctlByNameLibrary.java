@@ -8,8 +8,8 @@ import com.sun.jna.ptr.LongByReference;
 
 import java.util.List;
 
-public interface CSysctlByNameLibrary extends Library {
-    CSysctlByNameLibrary INSTANCE = Native.load("System", CSysctlByNameLibrary.class);
+public interface CMacSysctlByNameLibrary extends Library {
+    CMacSysctlByNameLibrary INSTANCE = Native.load("System", CMacSysctlByNameLibrary.class);
 
     int KERN_SUCCESS = 0;
 
