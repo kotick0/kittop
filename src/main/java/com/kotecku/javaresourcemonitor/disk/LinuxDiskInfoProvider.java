@@ -12,10 +12,9 @@ import java.util.List;
 
 @Component
 @Conditional(OnLinuxCondition.class)
-public class LinuxDiskInfoProvider implements DiskInfoProvider { //TODO Implementacja metod
+public class LinuxDiskInfoProvider implements DiskInfoProvider { //TODO Implementacja metod + refactor
 
-    @Override
-    public List<String> getMountPoints() {
+    private List<String> getMountPoints() {
         try {
             return Files.readString(Path.of("/etc/fstab")).lines()
                     .filter(line -> !line.contains("#") && !line.isBlank())
@@ -28,27 +27,7 @@ public class LinuxDiskInfoProvider implements DiskInfoProvider { //TODO Implemen
     }
 
     @Override
-    public List<Long> getTotalDiskSpaceBytes() {
+    public DiskSnapshot getDiskSnapshot() {
         return null;
-    }
-
-    @Override
-    public List<Long> getUsedDiskSpaceBytes() {
-        return null;
-    }
-
-    @Override
-    public List<Long> getFreeDiskSpaceBytes() {
-        return null;
-    }
-
-    @Override
-    public long getSwapTotalBytes() {
-        return 0;
-    }
-
-    @Override
-    public long getSwapFreeBytes() {
-        return 0;
     }
 }

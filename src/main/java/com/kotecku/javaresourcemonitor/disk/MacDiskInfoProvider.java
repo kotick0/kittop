@@ -2,6 +2,7 @@ package com.kotecku.javaresourcemonitor.disk;
 
 import com.kotecku.javaresourcemonitor.OnMacOsCondition;
 import com.sun.jna.Native;
+import com.sun.jna.ptr.LongByReference;
 import com.sun.jna.ptr.PointerByReference;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Component;
@@ -35,60 +36,49 @@ public class MacDiskInfoProvider implements DiskInfoProvider {
         return vfs;
     }
 
-    @Override
-    public List<String> getMountPoints() {
-        List<String> mountPoints = new ArrayList<>();
-        for (CGetMntInfoLibrary.Statfs statfs : callGetMntInfo()) {
-            mountPoints.add(Native.toString(statfs.f_mntonname));
+    private CSysctlByNameLibrary.XswUsage callXswUsage() {
+        CSysctlByNameLibrary.XswUsage xswUsage = new CSysctlByNameLibrary.XswUsage();
+        LongByReference sizeLength = new LongByReference(xswUsage.size());
+
+        int result = CSysctlByNameLibrary.INSTANCE.sysctlbyname("vm.swapusage", xswUsage.getPointer(), sizeLength, null, 0L);
+
+        if (result != CSysctlByNameLibrary.KERN_SUCCESS) {
+            throw new IllegalStateException("sysctlbyname(\"vm.swapusage\") returned an error, code: " + result);
         }
-        mountPoints.removeAll(List.of("/dev", "/System/Volumes/Data/home"));
-//        mountPoints.replaceAll(mountPoint -> mountPoint.replace("/System/Volumes/", "")
-//                .replace("/Volumes/", "").replace("/", "root")); //TODO Wyrzucic na "frontend"
+
+        xswUsage.read();
+        return xswUsage;
+    }
+
+    private List<String> getMountPoints(List<CGetMntInfoLibrary.Statfs> mntInfo) {
+        List<String> mountPoints = new ArrayList<>();
+        for (CGetMntInfoLibrary.Statfs statfs : mntInfo) {
+            if(!Native.toString(statfs.f_mntonname).equals("/dev") && !Native.toString(statfs.f_mntonname).equals("/System/Volumes/Data/home")) {
+                mountPoints.add(Native.toString(statfs.f_mntonname));
+            }
+        }
         return mountPoints;
     }
 
     @Override
-    public List<Long> getTotalDiskSpaceBytes() {
-        List<Long> totalDiskSpace = new ArrayList<>();
-        for (String mountPoint : getMountPoints()) {
+    public DiskSnapshot getDiskSnapshot() {
+        List<CGetMntInfoLibrary.Statfs> mntInfo = callGetMntInfo();
+        List<String> mountPoints = getMountPoints(mntInfo);
+        List<MountPointSnapshot> mountPointSnapshots = new ArrayList<>();
+        for(String mountPoint : mountPoints) {
             CStatVfsLibrary.StatVfs statVfs = callStatVfs(mountPoint);
-            long mountPointTotalDiskSpace = statVfs.f_blocks * statVfs.f_frsize;
-            totalDiskSpace.add(mountPointTotalDiskSpace);
+            long totalSpaceBytes = statVfs.f_blocks * statVfs.f_frsize;
+            long freeSpaceBytes = statVfs.f_bfree * statVfs.f_frsize;
+            long usedSpaceBytes = totalSpaceBytes - freeSpaceBytes;
+            mountPointSnapshots.add(new MountPointSnapshot(mountPoint, totalSpaceBytes, usedSpaceBytes, freeSpaceBytes));
         }
-        return totalDiskSpace;
-    }
 
-    @Override
-    public List<Long> getUsedDiskSpaceBytes() {
-        List<Long> totalDiskSpace = getTotalDiskSpaceBytes();
-        List<Long> freeDiskSpace = getFreeDiskSpaceBytes();
-        List<Long> usedDiskSpace = new ArrayList<>();
-        for(int i = 0; i < totalDiskSpace.size(); i++) {
-            long mountPointUsedDiskSpace = totalDiskSpace.get(i) - freeDiskSpace.get(i);
-            usedDiskSpace.add(mountPointUsedDiskSpace);
-        }
-        return usedDiskSpace;
-    }
+        CSysctlByNameLibrary.XswUsage xswUsage = callXswUsage();
+        long swapTotalBytes = xswUsage.xsu_total;
+        long swapFreeBytes = xswUsage.xsu_avail;
+        long swapUsedBytes = xswUsage.xsu_used;
 
-    @Override
-    public List<Long> getFreeDiskSpaceBytes() {
-        List<Long> freeDiskSpace = new ArrayList<>();
-        for (String mountPoint : getMountPoints()) {
-            CStatVfsLibrary.StatVfs statVfs = callStatVfs(mountPoint);
-            long mountPointFreeDiskSpace = statVfs.f_bfree * statVfs.f_frsize;
-            freeDiskSpace.add(mountPointFreeDiskSpace);
-        }
-        return freeDiskSpace;
-    }
-
-    @Override
-    public long getSwapTotalBytes() {
-        return 0; //TODO Implementacja dla macOS
-    }
-
-    @Override
-    public long getSwapFreeBytes() {
-        return 0; //TODO Implementacja dla macOS
+        return new DiskSnapshot(mountPointSnapshots, swapTotalBytes, swapFreeBytes, swapUsedBytes);
     }
 
 }
