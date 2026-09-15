@@ -14,7 +14,7 @@ import java.util.List;
 
 @Component
 @Conditional(OnLinuxCondition.class)
-public class LinuxDiskInfoProvider implements DiskInfoProvider { //TODO Implementacja metod + refactor
+public class LinuxDiskInfoProvider implements DiskInfoProvider {
 
     private CLinuxStatVfsLibrary.StatVfs callStatVfs(String path) {
         CLinuxStatVfsLibrary.StatVfs vfs = new CLinuxStatVfsLibrary.StatVfs();
@@ -27,11 +27,16 @@ public class LinuxDiskInfoProvider implements DiskInfoProvider { //TODO Implemen
 
     private List<String> getMountPoints() {
         try {
+            List<String> physicalMounts = Files.readString(Path.of("/proc/filesystems")).lines()
+                    .filter(line -> !line.contains("nodev"))
+                    .map(String::trim)
+                    .toList();
             return Files.readString(Path.of("/etc/fstab")).lines()
                     .filter(line -> !line.contains("#") && !line.isBlank())
+                    .filter(line -> physicalMounts.stream().anyMatch(line::contains))
                     .map(StringUtils::normalizeSpace)
                     .map(line -> line.split(" ")[1])
-                    .collect(java.util.stream.Collectors.toList());
+                    .toList();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
