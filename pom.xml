@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.kotecku</groupId>
-    <artifactId>JavaResourceMonitor</artifactId>
+    <artifactId>Kittop</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>JavaResourceMonitor</name>
-    <description>JavaResourceMonitor</description>
+    <name>Kittop</name>
+    <description>Kittop</description>
     <url/>
     <licenses>
         <license/>
