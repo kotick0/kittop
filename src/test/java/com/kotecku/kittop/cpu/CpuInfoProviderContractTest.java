@@ -19,17 +19,17 @@ abstract class CpuInfoProviderContractTest {
 
     @Test
     void getCpuLoadPerCoreShouldNotBeNull() {
-        assertThat(provider().getCpuLoadPerCore()).isNotNull();
+        assertThat(provider().getCpuSnapshot().cpuLoadPerCore()).isNotNull();
     }
 
     @Test
     void getCpuLoadPerCoreShouldHaveSizeEqualToLogicalCores() {
-        assertThat(provider().getCpuLoadPerCore()).hasSize(LOGICAL_CORES);
+        assertThat(provider().getCpuSnapshot().cpuLoadPerCore()).hasSize(LOGICAL_CORES);
     }
 
     @Test
     void getCpuLoadPerCoreShouldReturnValuesBetween0And100() {
-        double[] loadPerCore = provider().getCpuLoadPerCore();
+        double[] loadPerCore = provider().getCpuSnapshot().cpuLoadPerCore();
         for (double load : loadPerCore) {
             assertThat(load).isNotNaN().isBetween(MIN_LOAD, MAX_LOAD);
         }
@@ -37,18 +37,18 @@ abstract class CpuInfoProviderContractTest {
 
     @Test
     void getCpuTemperaturePerCoreShouldNotBeNull() {
-        assertThat(provider().getCpuTemperaturePerCore()).isNotNull();
+        assertThat(provider().getCpuSnapshot().cpuTemperaturePerCore()).isNotNull();
     }
 
     @Test
     @DisabledIfEnvironmentVariable(named = "CI", matches = "true")
     void getCpuTemperaturePerCoreShouldHaveSizeEqualToLogicalCores() {
-        assertThat(provider().getCpuTemperaturePerCore()).hasSize(LOGICAL_CORES);
+        assertThat(provider().getCpuSnapshot().cpuTemperaturePerCore()).hasSize(LOGICAL_CORES);
     }
 
     @Test
     void getCpuTemperaturePerCoreShouldReturnValuesBetween0And150() {
-        double[] temperaturePerCore = provider().getCpuTemperaturePerCore();
+        double[] temperaturePerCore = provider().getCpuSnapshot().cpuTemperaturePerCore();
         for (double temperature : temperaturePerCore) {
             assertThat(temperature).isNotNaN().isBetween(MIN_TEMPERATURE, MAX_TEMPERATURE);
         }
@@ -56,22 +56,22 @@ abstract class CpuInfoProviderContractTest {
 
     @Test
     void getCpuLoadPercentShouldNotBeNull() {
-        assertThat(provider().getCpuLoadPercent()).isNotNull();
+        assertThat(provider().getCpuSnapshot().cpuLoadPercent()).isNotNull();
     }
 
     @Test
     void getCpuLoadPercentShouldReturnValueBetween0And100() {
-        assertThat(provider().getCpuLoadPercent()).isNotNaN().isBetween(MIN_LOAD, MAX_LOAD);
+        assertThat(provider().getCpuSnapshot().cpuLoadPercent()).isNotNaN().isBetween(MIN_LOAD, MAX_LOAD);
     }
 
     @Test
     void getCpuTemperatureMaxShouldNotBeNull() {
-        assertThat(provider().getCpuTemperatureMax()).isNotNull();
+        assertThat(provider().getCpuSnapshot().cpuTemperatureMax()).isNotNull();
     }
 
     @Test
     void getCpuTemperatureMaxShouldReturnValueBetween0And150() {
-        assertThat(provider().getCpuTemperatureMax()).isNotNaN().isBetween(MIN_TEMPERATURE, MAX_TEMPERATURE);
+        assertThat(provider().getCpuSnapshot().cpuTemperatureMax()).isNotNaN().isBetween(MIN_TEMPERATURE, MAX_TEMPERATURE);
     }
 
 

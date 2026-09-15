@@ -34,6 +34,9 @@ public class MacCpuInfoProvider implements CpuInfoProvider {
 
     private Path extractedBinary;
 
+    private record CpuLoad(double percent, double[] perCore) {
+    }
+
     @PostConstruct
     public void extractBinary() {
         if (System.getProperty("os.arch").contains("aarch64") && System.getProperty("os.name").contains("Mac")) {
@@ -67,23 +70,7 @@ public class MacCpuInfoProvider implements CpuInfoProvider {
         }
     }
 
-    @Override
-    public double[] getCpuLoadPerCore() {
-        long[][] prevTicks = centralProcessor.getProcessorCpuLoadTicks();
-        try {
-            TimeUnit.SECONDS.sleep(1);
-            double[] loadPerCore = centralProcessor.getProcessorCpuLoadBetweenTicks(prevTicks);
-            for (int i = 0; i < loadPerCore.length; i++) {
-                loadPerCore[i] *= 100;
-            }
-            return loadPerCore;
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public double[] getCpuTemperaturePerCore() {
+    private double[] getCpuTemperaturePerCore() {
         try {
             if (extractedBinary == null) {
                 log.warn("cputemp binary not available");
@@ -135,20 +122,34 @@ public class MacCpuInfoProvider implements CpuInfoProvider {
         }
     }
 
-    @Override
-    public double getCpuLoadPercent() {
-        long[] prevTicks = centralProcessor.getSystemCpuLoadTicks();
+    private CpuLoad measureCpuLoad() {
+        long[] prevSystemTicks = centralProcessor.getSystemCpuLoadTicks();
+        long[][] prevPerCoreTicks = centralProcessor.getProcessorCpuLoadTicks();
         try {
             TimeUnit.SECONDS.sleep(1);
-            return centralProcessor.getSystemCpuLoadBetweenTicks(prevTicks) * 100;
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+
+        double percent = centralProcessor.getSystemCpuLoadBetweenTicks(prevSystemTicks) * 100;
+
+        double[] perCore = centralProcessor.getProcessorCpuLoadBetweenTicks(prevPerCoreTicks);
+        for (int i = 0; i < perCore.length; i++) {
+            perCore[i] *= 100;
+        }
+
+        return new CpuLoad(percent, perCore);
     }
 
     @Override
-    public double getCpuTemperatureMax() {
-        double[] coreTemps = getCpuTemperaturePerCore();
-        return java.util.Arrays.stream(coreTemps).max().orElse(0.0);
+    public CpuSnapshot getCpuSnapshot() {
+        CpuLoad cpuLoad = measureCpuLoad();
+        double[] cpuTemperaturePerCore = getCpuTemperaturePerCore();
+        return new CpuSnapshot(
+                cpuLoad.perCore(),
+                cpuTemperaturePerCore,
+                cpuLoad.percent(),
+                java.util.Arrays.stream(cpuTemperaturePerCore).max().orElse(0.0)
+        );
     }
 }

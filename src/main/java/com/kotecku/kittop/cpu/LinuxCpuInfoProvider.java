@@ -28,23 +28,7 @@ public class LinuxCpuInfoProvider implements CpuInfoProvider {
 
     private static final Set<String> TEMP_DRIVERS = Set.of("coretemp", "k10temp", "k8temp", "zenpower");
 
-    @Override
-    public double[] getCpuLoadPerCore() {
-        long[][] prevTicks = centralProcessor.getProcessorCpuLoadTicks();
-        try {
-            TimeUnit.SECONDS.sleep(1);
-            double[] loadPerCore = centralProcessor.getProcessorCpuLoadBetweenTicks(prevTicks);
-            for (int i = 0; i < loadPerCore.length; i++) {
-                loadPerCore[i] *= 100;
-            }
-            return loadPerCore;
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public double[] getCpuTemperaturePerCore() {
+    private double[] getCpuTemperaturePerCore() {
         LinkedHashMap<String, Double> cores = new LinkedHashMap<>();
         try (DirectoryStream<Path> hwmons = Files.newDirectoryStream(Paths.get("/sys/class/hwmon"), "hwmon*")) {
             for (Path hwmon : hwmons) {
@@ -72,19 +56,27 @@ public class LinuxCpuInfoProvider implements CpuInfoProvider {
         return cores.values().stream().mapToDouble(Double::doubleValue).toArray();
     }
 
-    @Override
-    public double getCpuLoadPercent() {
-        long[] prevTicks = centralProcessor.getSystemCpuLoadTicks();
-        try {
-            TimeUnit.SECONDS.sleep(1);
-            return centralProcessor.getSystemCpuLoadBetweenTicks(prevTicks) * 100;
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+    private double getCpuTemperatureMax() {
+        return sensors.getCpuTemperature();
     }
 
     @Override
-    public double getCpuTemperatureMax() {
-        return sensors.getCpuTemperature();
+    public CpuSnapshot getCpuSnapshot() {
+        long[][] prevTicksPerCore = centralProcessor.getProcessorCpuLoadTicks();
+        long[] prevTicksSystem = centralProcessor.getSystemCpuLoadTicks();
+
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        double[] loadPerCore = centralProcessor.getProcessorCpuLoadBetweenTicks(prevTicksPerCore);
+        for (int i = 0; i < loadPerCore.length; i++) {
+            loadPerCore[i] *= 100;
+        }
+        double loadPercent = centralProcessor.getSystemCpuLoadBetweenTicks(prevTicksSystem) * 100;
+
+        return new CpuSnapshot(loadPerCore, getCpuTemperaturePerCore(), loadPercent, getCpuTemperatureMax());
     }
 }
