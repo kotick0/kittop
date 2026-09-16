@@ -1,7 +1,9 @@
 package com.kotecku.kittop.memory;
 
 import com.kotecku.kittop.OnMacOsCondition;
+import com.kotecku.kittop.exceptions.MemoryInfoException;
 import com.sun.jna.Memory;
+import com.sun.jna.Native;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.LongByReference;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +32,7 @@ public class MacMemoryInfoProvider implements MemoryInfoProvider {
         );
 
         if (result != MachMacHostStatisticsLibrary.KERN_SUCCESS) {
-            throw new IllegalStateException("host_statistics64(HOST_VM_INFO64) returned an error, code: " + result);
+            throw new MemoryInfoException("host_statistics64(HOST_VM_INFO64) returned an error: " + Native.getLastError());
         }
         return stats;
     }
@@ -49,7 +51,7 @@ public class MacMemoryInfoProvider implements MemoryInfoProvider {
 
         if (result != MachMacHostStatisticsLibrary.KERN_SUCCESS) {
             throw new IllegalStateException(
-                    "sysctlbyname(\"hw.pagesize\") returned an error, code: " + result);
+                    "sysctlbyname(\"hw.pagesize\") returned an error: " + Native.getLastError());
         }
 
         return sizeBuffer.getLong(0);

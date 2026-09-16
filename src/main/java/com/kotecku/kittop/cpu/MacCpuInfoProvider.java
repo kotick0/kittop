@@ -1,10 +1,10 @@
 package com.kotecku.kittop.cpu;
 
 import com.kotecku.kittop.OnMacOsCondition;
+import com.kotecku.kittop.exceptions.CpuInfoException;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Component;
 import oshi.hardware.CentralProcessor;
@@ -16,11 +16,13 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 @Conditional(OnMacOsCondition.class)
@@ -28,7 +30,6 @@ public class MacCpuInfoProvider implements CpuInfoProvider {
 
     private final CentralProcessor centralProcessor;
 
-    private static final Logger log = LoggerFactory.getLogger(MacCpuInfoProvider.class);
     private static final Pattern PMU2_TDIE_PATTERN = Pattern.compile("^PMU2 tdie\\d+$");
     private static final String RESOURCE_PATH = "/native/macos-arm64/cputemp";
 
@@ -39,44 +40,52 @@ public class MacCpuInfoProvider implements CpuInfoProvider {
 
     @PostConstruct
     public void extractBinary() {
-        if (System.getProperty("os.arch").contains("aarch64") && System.getProperty("os.name").contains("Mac")) {
-            try (InputStream in = getClass().getResourceAsStream(RESOURCE_PATH)) {
-                if (in == null) {
-                    log.warn("cputemp binary not found in classpath at {}", RESOURCE_PATH);
-                    return;
-                }
-                extractedBinary = Files.createTempFile("cputemp", "");
-                Files.copy(in, extractedBinary, StandardCopyOption.REPLACE_EXISTING);
-                if (!extractedBinary.toFile().setExecutable(true)) {
-                    throw new IOException("Couldn't set the right permissions for file: " + extractedBinary);
-                }
-
-                new ProcessBuilder("xattr", "-d", "com.apple.quarantine", extractedBinary.toString())
-                        .start()
-                        .waitFor(3, TimeUnit.SECONDS);
-
-                Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                    try {
-                        Files.deleteIfExists(extractedBinary);
-                    } catch (IOException e) {
-                        log.warn("Failed to delete temp binary: {}", e.getMessage());
-                    }
-                }));
-
-                log.info("cputemp binary extracted to {}", extractedBinary);
-            } catch (Exception e) {
-                log.warn("Failed to extract cputemp binary: {}", e.getMessage());
+        if (!System.getProperty("os.arch").contains("aarch64") || !System.getProperty("os.name").contains("Mac")) {
+            return;
+        }
+        try (InputStream in = getClass().getResourceAsStream(RESOURCE_PATH)) {
+            if (in == null) {
+                log.warn("cputemp binary not found in classpath at {}", RESOURCE_PATH);
+                return;
             }
+            extractedBinary = Files.createTempFile("cputemp", "");
+            Files.copy(in, extractedBinary, StandardCopyOption.REPLACE_EXISTING);
+            if (!extractedBinary.toFile().setExecutable(true)) {
+                throw new IOException("Couldn't set the right permissions for file: " + extractedBinary);
+            }
+
+            boolean quarantineRemoved = new ProcessBuilder("xattr", "-d", "com.apple.quarantine", extractedBinary.toString())
+                    .start()
+                    .waitFor(3, TimeUnit.SECONDS);
+            if (!quarantineRemoved) {
+                log.warn("xattr did not finish in time while removing quarantine flag from {}", extractedBinary);
+            }
+
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try {
+                    Files.deleteIfExists(extractedBinary);
+                } catch (IOException e) {
+                    log.warn("Failed to delete temp binary: {}", extractedBinary, e);
+                }
+            }));
+
+            log.info("cputemp binary extracted to {}", extractedBinary);
+        } catch (Exception e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            log.warn("Failed to extract cputemp binary", e);
+            extractedBinary = null;
         }
     }
 
     private double[] getCpuTemperaturePerCore() {
-        try {
-            if (extractedBinary == null) {
-                log.warn("cputemp binary not available");
-                return new double[0];
-            }
+        if (extractedBinary == null) {
+            log.warn("cputemp binary not available");
+            return new double[0];
+        }
 
+        try {
             Process process = new ProcessBuilder(extractedBinary.toString())
                     .redirectErrorStream(false)
                     .start();
@@ -98,7 +107,7 @@ public class MacCpuInfoProvider implements CpuInfoProvider {
                         int coreIndex = Integer.parseInt(name.replaceAll("\\D+", "")) - 1;
                         coreMap.put(coreIndex, value);
                     } catch (NumberFormatException e) {
-                        log.warn("Could not parse temperature value on line: {}", line);
+                        log.warn("Could not parse temperature value on line: {}", line, e);
                     }
                 }
             }
@@ -117,7 +126,10 @@ public class MacCpuInfoProvider implements CpuInfoProvider {
 
             return coreMap.values().stream().mapToDouble(Double::doubleValue).toArray();
         } catch (Exception e) {
-            log.warn("Failed to read CPU temperatures: {}", e.getMessage());
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            log.warn("Failed to read CPU temperatures", e);
             return new double[0];
         }
     }
@@ -128,7 +140,8 @@ public class MacCpuInfoProvider implements CpuInfoProvider {
         try {
             TimeUnit.SECONDS.sleep(1);
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            Thread.currentThread().interrupt();
+            throw new CpuInfoException("Interrupted while sampling CPU load", e);
         }
 
         double percent = centralProcessor.getSystemCpuLoadBetweenTicks(prevSystemTicks) * 100;
@@ -149,7 +162,7 @@ public class MacCpuInfoProvider implements CpuInfoProvider {
                 cpuLoad.perCore(),
                 cpuTemperaturePerCore,
                 cpuLoad.percent(),
-                java.util.Arrays.stream(cpuTemperaturePerCore).max().orElse(0.0)
+                Arrays.stream(cpuTemperaturePerCore).max().orElse(0.0)
         );
     }
 }

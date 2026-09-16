@@ -109,8 +109,8 @@ public class LinuxDiskInfoProvider implements DiskInfoProvider {
         }
 
         HashMap<String, Long> swapData = getSwapData();
-        long memTotal = swapData.get("MemTotal");
-        long memFree = swapData.get("MemFree");
+        long memTotal = swapData.get("SwapTotal");
+        long memFree = swapData.get("SwapFree");
         return new DiskSnapshot(mountPointSnapshots, memTotal, memFree, memTotal - memFree);
     }
 }

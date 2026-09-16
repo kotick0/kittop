@@ -1,6 +1,7 @@
 package com.kotecku.kittop.cpu;
 
 import com.kotecku.kittop.OnLinuxCondition;
+import com.kotecku.kittop.exceptions.CpuInfoException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Conditional;
@@ -32,27 +33,28 @@ public class LinuxCpuInfoProvider implements CpuInfoProvider {
         LinkedHashMap<String, Double> cores = new LinkedHashMap<>();
         try (DirectoryStream<Path> hwmons = Files.newDirectoryStream(Paths.get("/sys/class/hwmon"), "hwmon*")) {
             for (Path hwmon : hwmons) {
-                String driverName = Files.readString(hwmon.resolve("name"));
+                String driverName = Files.readString(hwmon.resolve("name")).trim();
                 if (TEMP_DRIVERS.stream().anyMatch(driverName::contains)) {
                     try (DirectoryStream<Path> labels = Files.newDirectoryStream(hwmon, "temp*_label")) {
-                        try {
-                            for (Path label : labels) {
+                        for (Path label : labels) {
+                            try {
                                 String coreName = Files.readString(label).trim();
                                 if (!coreName.contains("Package")) {
                                     Path input = hwmon.resolve(label.getFileName().toString().replace("_label", "_input"));
                                     double celsius = Long.parseLong(Files.readString(input).trim()) / 1000.0;
                                     cores.putIfAbsent(coreName, celsius);
                                 }
+                            } catch (IOException | NumberFormatException e) {
+                                log.warn("Skipping hwmon sensor {} in {}", label, hwmon, e);
                             }
-                        } catch (IOException e) {
-                            log.warn(e.getMessage());
                         }
                     }
                 }
             }
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new CpuInfoException("Failed to read CPU temperature sensors from /sys/class/hwmon", e);
         }
+        log.debug("Read temperature for {} CPU cores", cores.size());
         return cores.values().stream().mapToDouble(Double::doubleValue).toArray();
     }
 
@@ -68,7 +70,8 @@ public class LinuxCpuInfoProvider implements CpuInfoProvider {
         try {
             TimeUnit.SECONDS.sleep(1);
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            Thread.currentThread().interrupt();
+            throw new CpuInfoException("Interrupted while sampling CPU load", e);
         }
 
         double[] loadPerCore = centralProcessor.getProcessorCpuLoadBetweenTicks(prevTicksPerCore);
