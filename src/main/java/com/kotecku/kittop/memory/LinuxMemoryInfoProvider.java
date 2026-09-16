@@ -1,6 +1,7 @@
 package com.kotecku.kittop.memory;
 
 import com.kotecku.kittop.OnLinuxCondition;
+import com.kotecku.kittop.exceptions.MemoryInfoException;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Component;
 
@@ -13,18 +14,6 @@ import java.util.HashMap;
 @Conditional(OnLinuxCondition.class)
 public class LinuxMemoryInfoProvider implements MemoryInfoProvider {
     private static final Path MEMINFOPATH = Path.of("/proc/meminfo");
-
-    @Override
-    public MemorySnapshot getMemorySnapshot() {
-        HashMap<String, Long> memoryInfo = extractDataFromProcMeminfo();
-        return new MemorySnapshot(
-                memoryInfo.get("MemTotal"),
-                memoryInfo.get("MemAvailable"),
-                memoryInfo.get("MemFree"),
-                memoryInfo.get("Cached"),
-                memoryInfo.get("MemUsed")
-        );
-    }
 
     private HashMap<String, Long> extractDataFromProcMeminfo() {
         try {
@@ -45,8 +34,20 @@ public class LinuxMemoryInfoProvider implements MemoryInfoProvider {
             return memoryInfo;
 
         } catch (IOException e) {
-            throw new RuntimeException("Failed to read /proc/meminfo: ", e);
+            throw new MemoryInfoException("Failed to read /proc/meminfo: ", e);
         }
+    }
+
+    @Override
+    public MemorySnapshot getMemorySnapshot() {
+        HashMap<String, Long> memoryInfo = extractDataFromProcMeminfo();
+        return new MemorySnapshot(
+                memoryInfo.get("MemTotal"),
+                memoryInfo.get("MemAvailable"),
+                memoryInfo.get("MemFree"),
+                memoryInfo.get("Cached"),
+                memoryInfo.get("MemUsed")
+        );
     }
 
 }
