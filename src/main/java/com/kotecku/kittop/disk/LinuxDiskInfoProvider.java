@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,7 +34,8 @@ public class LinuxDiskInfoProvider implements DiskInfoProvider {
         List<String> physicalMounts;
         try {
             physicalMounts = Files.readString(Path.of("/proc/filesystems")).lines()
-                    .filter(line -> !line.contains("nodev"))
+                    .filter(line -> !line.contains("squashfs") && !line.contains("nullfs"))
+                    .map(line -> line.replace("nodev", ""))
                     .map(String::trim)
                     .toList();
         } catch (IOException e) {
@@ -90,10 +92,35 @@ public class LinuxDiskInfoProvider implements DiskInfoProvider {
         return swapData;
     }
 
+    private String resolveSymlink(String path) {
+        try {
+            return Path.of(path).toRealPath().toString();
+        } catch (NoSuchFileException e) {
+            return null;
+        } catch (IOException e) {
+            throw new DiskInfoException("Failed to resolve symlink for: " + path, e);
+        }
+    }
+
+    private HashMap<String, String> getMountPointDevices(List<String> mountPoints) {
+        HashMap<String, String> deviceNames = new HashMap<>();
+
+        try {
+            Files.readString(Path.of("/proc/mounts")).lines()
+                    .map(line -> line.split(" "))
+                    .filter(line -> mountPoints.contains(line[1]))
+                    .forEach(line -> deviceNames.put(line[1], resolveSymlink(line[0])));
+        } catch (IOException e) {
+            throw new DiskInfoException("Failed to read /proc/mounts", e);
+        }
+        return deviceNames;
+    }
+
     @Override
     public DiskSnapshot getDiskSnapshot() {
         List<String> mountPoints = getMountPoints();
         List<MountPointSnapshot> mountPointSnapshots = new ArrayList<>();
+        HashMap<String, String> mountPointDevices = getMountPointDevices(mountPoints);
 
         for (String mountPoint : mountPoints) {
             try {
@@ -102,7 +129,9 @@ public class LinuxDiskInfoProvider implements DiskInfoProvider {
                 long freeSpaceBytes = vfs.f_bfree * vfs.f_frsize;
                 long usedSpaceBytes = totalSpaceBytes - freeSpaceBytes;
 
-                mountPointSnapshots.add(new MountPointSnapshot(mountPoint, totalSpaceBytes, usedSpaceBytes, freeSpaceBytes));
+                String mountPointDevice = mountPointDevices.get(mountPoint);
+
+                mountPointSnapshots.add(new MountPointSnapshot(mountPoint, mountPointDevice, totalSpaceBytes, usedSpaceBytes, freeSpaceBytes));
             } catch (DiskInfoException e) {
                 log.warn("Skipping mount point {} due to statvfs error", mountPoint, e);
             }

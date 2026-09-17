@@ -77,7 +77,8 @@ public class MacDiskInfoProvider implements DiskInfoProvider {
                 long totalSpaceBytes = statVfs.f_blocks * statVfs.f_frsize;
                 long freeSpaceBytes = statVfs.f_bfree * statVfs.f_frsize;
                 long usedSpaceBytes = totalSpaceBytes - freeSpaceBytes;
-                mountPointSnapshots.add(new MountPointSnapshot(mountPoint, totalSpaceBytes, usedSpaceBytes, freeSpaceBytes));
+                String mountPointDevice = ""; //TODO Do wywalenia
+                mountPointSnapshots.add(new MountPointSnapshot(mountPoint, mountPointDevice, totalSpaceBytes, usedSpaceBytes, freeSpaceBytes));
             } catch (DiskInfoException e) {
                 log.warn("Skipping mount point {} due to statvfs error", mountPoint, e);
             }

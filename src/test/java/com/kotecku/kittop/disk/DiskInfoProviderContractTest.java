@@ -22,7 +22,6 @@ abstract class DiskInfoProviderContractTest {
     @Test
     void getDiskSnapshot_mountPointSnapshotsHaveConsistentSpaceValues() {
         DiskSnapshot snapshot = provider().getDiskSnapshot();
-
         for (MountPointSnapshot mountPointSnapshot : snapshot.mountPoints()) {
             assertNotNull(mountPointSnapshot.mountPoint());
             assertTrue(mountPointSnapshot.totalDiskSpaceBytes() > 0);
